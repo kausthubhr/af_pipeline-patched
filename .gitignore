@@ -1,3 +1,6 @@
+# Populated by RELIC's setup.sh as a plain clone of kausthubhr/pae_to_domains-patched.
+af_pipeline/pae_to_domains/
+
 examples/input/AF_predictions/*
 tests/test_data/*
 docs/network/af_pipeline_network.html
