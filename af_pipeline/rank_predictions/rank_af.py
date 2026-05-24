@@ -55,6 +55,27 @@ def get_job_set_dirs(pred_dir:str, pred_type:str) -> set:
     if not os.path.isdir(pred_dir):
         raise ValueError(f"Prediction directory {pred_dir} does not exist.")
 
+    # Patch P14: auto-promote a seed/job dir → its parent (the actual
+    # job_set_dir). AF3 server output nests as
+    #     <batch>/<seed>/{model_*.cif, msas/, templates/, ...}
+    # If the user points at <seed> (the dir with .cif files directly)
+    # instead of <batch>, the existing `all([is_valid_job_dir(d) for d in
+    # d.iterdir() if d.is_dir()])` predicate rejects <seed> because
+    # msas/ + templates/ aren't valid job dirs themselves — and the
+    # downstream get_af3_model_metrics_per_seed would then try to read
+    # seeds-of-the-seed and fail with a confusing message. Promoting to
+    # the parent makes the rest of the pipeline see the layout it expects.
+    if pred_type == "AF3" and is_valid_job_dir(pred_dir):
+        promoted = str(Path(pred_dir).parent)
+        if promoted and promoted != pred_dir:
+            warnings.warn(
+                f"Pred dir '{pred_dir}' contains .cif/.pdb files directly — "
+                f"this looks like an AF3 seed/job dir, not a job-set "
+                f"(batch) dir. Auto-promoting to parent '{promoted}'. "
+                f"To suppress this warning, pass the parent directory directly."
+            )
+            pred_dir = promoted
+
     job_set_dirs = set()
 
     directories = [Path(pred_dir)] + [d for d in Path(pred_dir).rglob('*') if d.is_dir()]
